@@ -1,0 +1,1 @@
+tensorboard --logdir=/media/f511/Wenjie/swart/test-fcos/$1/$2/logs --host=127.0.0.1
