@@ -425,7 +425,7 @@ class FCOSLossComputation(object):
 
         if pos_inds.numel() > 0:
             # centerness_targets = self.compute_centerness_targets(reg_targets_flatten)
-            gious, ious = self.calc_ious(box_regression_flatten, reg_targets_flatten, iou_type="diou")
+            gious, ious = self.calc_ious(box_regression_flatten, reg_targets_flatten, iou_type="giou")
             iou_targets = ious.detach()
 
             with torch.no_grad():
