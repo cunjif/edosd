@@ -245,7 +245,7 @@ class FCOSLossComputation(object):
 
             locations_to_gt_area = area[None].repeat(len(locations), 1)
             locations_to_gt_area[is_in_boxes == 0] = INF
-            locations_to_gt_area[is_cared_in_the_level == 0] = INF
+            # locations_to_gt_area[is_cared_in_the_level == 0] = INF
 
             # if there are still more than one objects for a location,
             # we choose the one with minimal area
@@ -418,11 +418,6 @@ class FCOSLossComputation(object):
         total_num_pos = reduce_sum(pos_inds.new_tensor([pos_inds.numel()])).item()
         num_pos_avg_per_gpu = max(total_num_pos / float(num_gpus), 1.0)
         
-        # cls_loss = self.cls_loss_func(
-        #     box_cls_flatten,
-        #     labels_flatten.int()
-        # ) / num_pos_avg_per_gpu
-
         if pos_inds.numel() > 0:
             # centerness_targets = self.compute_centerness_targets(reg_targets_flatten)
             gious, ious = self.calc_ious(box_regression_flatten, reg_targets_flatten, iou_type="giou")
