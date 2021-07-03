@@ -32,7 +32,7 @@ def reduce_sum(tensor):
     return tensor
 
 
-class FCOSLossComputation(object):
+class EDMLossComputation(object):
     """
     This class computes the FCOS losses.
     """
@@ -281,6 +281,6 @@ class FCOSLossComputation(object):
         return cls_loss, reg_loss, centerness_loss
 
 
-def make_fcos_loss_evaluator(cfg):
-    loss_evaluator = FCOSLossComputation(cfg)
+def make_edm_loss_evaluator(cfg):
+    loss_evaluator = EDMLossComputation(cfg)
     return loss_evaluator

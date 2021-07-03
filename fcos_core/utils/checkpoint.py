@@ -98,16 +98,16 @@ class Checkpointer(object):
         return torch.load(f, map_location=torch.device("cpu"))
 
     def _load_model(self, checkpoint):
-        with open("/home/f511/桌面/checkpoint.txt", "w+") as fp:
-            for key, val in checkpoint["model"].items():
-                k = key.replace("module.", "")
-                fp.write(F"{k}\n")
-                fp.write(F"{val.shape}\n\n")
-        with open("/home/f511/桌面/model.txt", "w+") as fp:
-            for key, val in self.model.state_dict().items():
-                k = key.replace("module.", "")
-                fp.write(F"{k}\n")
-                fp.write(F"{val.shape}\n\n")
+        # with open("/home/f511/桌面/checkpoint.txt", "w+") as fp:
+        #     for key, val in checkpoint["model"].items():
+        #         k = key.replace("module.", "")
+        #         fp.write(F"{k}\n")
+        #         fp.write(F"{val.shape}\n\n")
+        # with open("/home/f511/桌面/model.txt", "w+") as fp:
+        #     for key, val in self.model.state_dict().items():
+        #         k = key.replace("module.", "")
+        #         fp.write(F"{k}\n")
+        #         fp.write(F"{val.shape}\n\n")
 
         # with open("/home/f511/桌面/checkpoint_state.txt", "w+") as fp:
         #     for key, val in checkpoint["model"].items():

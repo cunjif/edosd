@@ -24,6 +24,9 @@ _C.MODEL = CN()
 _C.MODEL.RPN_ONLY = False
 _C.MODEL.MASK_ON = False
 _C.MODEL.FCOS_ON = True
+_C.MODEL.EDOSD_ON = True
+_C.MODEL.EDM_ON = True
+_C.MODEL.RAS_ON = True
 _C.MODEL.RETINANET_ON = False
 _C.MODEL.KEYPOINT_ON = False
 _C.MODEL.DEVICE = "cuda"
@@ -287,9 +290,9 @@ _C.MODEL.RESNETS.DEFORMABLE_GROUPS = 1
 # ---------------------------------------------------------------------------- #
 # Decouple FPN options
 # ---------------------------------------------------------------------------- #
-_C.MODEL.DEFPN = CN()
-_C.MODEL.DEFPN.Hidden_P6_CHANNELS = 256
-_C.MODEL.DEFPN.Hidden_P7_CHANNELS = 256
+_C.MODEL.EDOSD = CN()
+_C.MODEL.EDOSD.Hidden_P6_CHANNELS = 256
+_C.MODEL.EDOSD.Hidden_P7_CHANNELS = 256
 
 
 # ---------------------------------------------------------------------------- #

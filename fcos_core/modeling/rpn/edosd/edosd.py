@@ -3,25 +3,25 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from .inference import make_fcos_postprocessor
-from .loss import make_fcos_loss_evaluator
+from .inference import make_edosd_postprocessor
+from .loss import make_edosd_loss_evaluator
 
 from fcos_core.layers import Scale
 from fcos_core.layers import DFConv2d
 
 
-class FCOSHead(torch.nn.Module):
+class EDOSDHead(torch.nn.Module):
     def __init__(self, cfg, in_channels):
         """
         Arguments:
             in_channels (int): number of channels of the input feature
         """
-        super(FCOSHead, self).__init__()
+        super(EDOSDHead, self).__init__()
         # TODO: Implement the sigmoid version first.
         num_classes = cfg.MODEL.FCOS.NUM_CLASSES - 1
         self.fpn_strides = cfg.MODEL.FCOS.FPN_STRIDES
         self.norm_reg_targets = cfg.MODEL.FCOS.NORM_REG_TARGETS
-        self.centerness_on_reg = cfg.MODEL.FCOS.CENTERNESS_ON_REG
+        # self.centerness_on_reg = cfg.MODEL.FCOS.CENTERNESS_ON_REG
         self.use_dcn_in_tower = cfg.MODEL.FCOS.USE_DCN_IN_TOWER
 
         cls_tower = []
@@ -94,14 +94,11 @@ class FCOSHead(torch.nn.Module):
         bbox_reg = []
         centerness = []
         for l, feature in enumerate(x):
-            cls_tower = self.cls_tower(feature)
-            box_tower = self.bbox_tower(feature)
+            cls_tower = self.cls_tower(feature.agg)
+            box_tower = self.bbox_tower(feature.appr)
 
             logits.append(self.cls_logits(cls_tower))
-            if self.centerness_on_reg:
-                centerness.append(self.centerness(box_tower))
-            else:
-                centerness.append(self.centerness(cls_tower))
+            centerness.append(self.centerness(box_tower))
 
             bbox_pred = self.scales[l](self.bbox_pred(box_tower))
             if self.norm_reg_targets:
@@ -112,23 +109,24 @@ class FCOSHead(torch.nn.Module):
                     bbox_reg.append(bbox_pred * self.fpn_strides[l])
             else:
                 bbox_reg.append(torch.exp(bbox_pred))
+                
         return logits, bbox_reg, centerness
 
 
-class FCOSModule(torch.nn.Module):
+class EDOSDModule(torch.nn.Module):
     """
     Module for FCOS computation. Takes feature maps from the backbone and
     FCOS outputs and losses. Only Test on FPN now.
     """
 
     def __init__(self, cfg, in_channels):
-        super(FCOSModule, self).__init__()
+        super(EDOSDModule, self).__init__()
 
-        head = FCOSHead(cfg, in_channels)
+        head = EDOSDHead(cfg, in_channels)
 
-        box_selector_test = make_fcos_postprocessor(cfg)
+        box_selector_test = make_edosd_postprocessor(cfg)
 
-        loss_evaluator = make_fcos_loss_evaluator(cfg)
+        loss_evaluator = make_edosd_loss_evaluator(cfg)
         self.head = head
         self.box_selector_test = box_selector_test
         self.loss_evaluator = loss_evaluator
@@ -142,6 +140,7 @@ class FCOSModule(torch.nn.Module):
                 used for computing the predictions. Each tensor in the list
                 correspond to different feature levels
             targets (list[BoxList): ground-truth boxes present in the image (optional)
+
         Returns:
             boxes (list[BoxList]): the predicted boxes from the RPN, one BoxList per
                 image.
@@ -184,10 +183,10 @@ class FCOSModule(torch.nn.Module):
     def compute_locations(self, features):
         locations = []
         for level, feature in enumerate(features):
-            h, w = feature.size()[-2:]
+            h, w = feature.agg.size()[-2:]
             locations_per_level = self.compute_locations_per_level(
                 h, w, self.fpn_strides[level],
-                feature.device
+                feature.agg.device
             )
             locations.append(locations_per_level)
         return locations
@@ -207,5 +206,5 @@ class FCOSModule(torch.nn.Module):
         locations = torch.stack((shift_x, shift_y), dim=1) + stride // 2
         return locations
 
-def build_fcos(cfg, in_channels):
-    return FCOSModule(cfg, in_channels)
+def build_edosd(cfg, in_channels):
+    return EDOSDModule(cfg, in_channels)

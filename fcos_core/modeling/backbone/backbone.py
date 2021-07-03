@@ -61,43 +61,38 @@ def build_resnet_fpn_p3p7_backbone(cfg):
     out_channels = cfg.MODEL.RESNETS.BACKBONE_OUT_CHANNELS
     in_channels_p6p7 = in_channels_stage2 * 8 if cfg.MODEL.RETINANET.USE_C5 \
         else out_channels
-    
-    # fpn = fpn_module.FPN(
-    #     in_channels_list=[
-    #         0,
-    #         in_channels_stage2 * 2,
-    #         in_channels_stage2 * 4,
-    #         in_channels_stage2 * 8,
-    #     ],
-    #     out_channels=out_channels,
-    #     conv_block=conv_with_kaiming_uniform(
-    #         cfg.MODEL.FPN.USE_GN, cfg.MODEL.FPN.USE_RELU
-    #     ),
-    #     top_blocks=fpn_module.LastLevelP6P7(in_channels_p6p7, out_channels),
+    fpn = fpn_module.FPN(
+        in_channels_list=[
+            0,
+            in_channels_stage2 * 2,
+            in_channels_stage2 * 4,
+            in_channels_stage2 * 8,
+        ],
+        out_channels=out_channels,
+        conv_block=conv_with_kaiming_uniform(
+            cfg.MODEL.FPN.USE_GN, cfg.MODEL.FPN.USE_RELU
+        ),
+        top_blocks=fpn_module.LastLevelP6P7(in_channels_p6p7, out_channels),
+    )
+    model = nn.Sequential(OrderedDict([("body", body), ("fpn", fpn)]))
+    model.out_channels = out_channels
+    return model
 
-    p6_channels = cfg.MODEL.DEFPN.Hidden_P6_CHANNELS
-    p7_channels = cfg.MODEL.DEFPN.Hidden_P7_CHANNELS
+
+@registry.BACKBONES.register("R-50-FPN-RETINANET-DEFPN")
+@registry.BACKBONES.register("R-101-FPN-RETINANET-DEFPN")
+def build_resnet_fpn_p3p7_backbone(cfg):
+    body = resnet.ResNet(cfg)
+    in_channels_stage2 = cfg.MODEL.RESNETS.RES2_OUT_CHANNELS
+    out_channels = cfg.MODEL.RESNETS.BACKBONE_OUT_CHANNELS
+    in_channels_p6p7 = in_channels_stage2 * 8 if cfg.MODEL.RETINANET.USE_C5 \
+        else out_channels
+    
+    p6_channels = cfg.MODEL.EDOSD.Hidden_P6_CHANNELS
+    p7_channels = cfg.MODEL.EDOSD.Hidden_P7_CHANNELS
 
     if not cfg.MODEL.RETINANET.USE_C5:
         p6_channels = in_channels_p6p7
-
-    # stride 4
-    # fpn = decouple_fpn.DecoupleFPN(
-    #     in_channels_list=[
-    #         in_channels_stage2 ,
-    #         in_channels_stage2 * 2,
-    #         in_channels_stage2 * 4,
-    #         in_channels_stage2 * 8,
-    #     ],
-    #     out_channels=out_channels,
-    #     num_outs=5,
-    #     conv_block=conv_with_kaiming_uniform(cfg.MODEL.FPN.USE_GN, cfg.MODEL.FPN.USE_RELU),
-    #     bottom_block=ConvBottomBlock(in_channels_stage2, out_channels),
-    #     top_block=P6P7TopBlock(in_channels_p6p7, p6_channels, out_channel=out_channels, p7_channels=p7_channels, use_p7=False),
-    #     agg_appr_fuses=[True, True, True, True, False],
-    #     appr_down_fuses=[False, True, True, True, True],
-    #     use_stride_4=True
-    # )
 
     # stride 8
     fpn = decouple_fpn.DecoupleFPN(
