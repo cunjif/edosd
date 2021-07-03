@@ -9,13 +9,6 @@ MODEL:
     BACKBONE_OUT_CHANNELS: 256
   RETINANET:
     USE_C5: False # FCOS uses P5 instead of C5
-  FCOS:
-    # normalizing the regression targets with FPN strides
-    # NORM_REG_TARGETS: True
-    CENTERNESS_ON_REG: True
-    # using center sampling and GIoU.
-    # Please refer to https://github.com/yqyao/FCOS_PLUS
-    # CENTER_SAMPLING_RADIUS: 2.0
 DATASETS:
   TRAIN: ("coco_2017_train",)
   TEST: ("coco_2017_val",)
