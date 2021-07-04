@@ -9,8 +9,9 @@ import torch.nn.functional as F
 
 
 class IOULoss(nn.Module):
-    def __init__(self):
+    def __init__(self, iou_loss_type="iou"):
         super(IOULoss, self).__init__()
+        self.iou_loss_type = iou_loss_type
 
     def calc_ious(self, pred, target):
         pred_left = pred[:, 0]
@@ -49,12 +50,20 @@ class IOULoss(nn.Module):
         gious = torch.clamp(gious, min=-1.0, max=1.0)
         dious = ious - inter_diag / outer_diag
         dious = torch.clamp(dious, min=-1.0, max=1.0)
+
+        if self.iou_loss_type == "iou" or self.iou_loss_type == "linear_iou":
+            return ious
+        elif self.iou_loss_type == "giou":
+            return gious
+        elif self.iou_loss_type == "diou":
+            return dious
         
-    def forward(self, ious, weight=None, loss_type="linear", reduction="sum"):
-        if loss_type == 'log':
-            assert False
+    def forward(self, ious, weight=None, reduction="sum"):
+        if self.iou_loss_type == 'iou':
             losses = -torch.log(ious)
-        elif loss_type == 'linear':
+        elif self.iou_loss_type == "linear_iou" or \
+             self.iou_loss_type == "giou" or \
+             self.iou_loss_type == "diou":
             losses = 1 - ious
         else:
             raise NotImplementedError

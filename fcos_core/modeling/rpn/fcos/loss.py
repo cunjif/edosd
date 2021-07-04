@@ -264,10 +264,10 @@ class FCOSLossComputation(object):
             sum_centerness_targets_avg_per_gpu = \
                 reduce_sum(centerness_targets.sum()).item() / float(num_gpus)
 
+            ious = self.box_reg_loss_func.calc_ious(box_regression_flatten, reg_targets_flatten)
             reg_loss = self.box_reg_loss_func(
-                box_regression_flatten,
-                reg_targets_flatten,
-                centerness_targets
+                ious,
+                weight=centerness_targets
             ) / sum_centerness_targets_avg_per_gpu
             centerness_loss = self.centerness_loss_func(
                 centerness_flatten,

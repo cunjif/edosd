@@ -54,7 +54,7 @@ class RASLossComputation(object):
 
         self.fpn_strides = cfg.MODEL.FCOS.FPN_STRIDES
         self.center_sampling_radius = cfg.MODEL.FCOS.CENTER_SAMPLING_RADIUS
-        # self.iou_loss_type = cfg.MODEL.FCOS.IOU_LOSS_TYPE
+        self.iou_loss_type = cfg.MODEL.FCOS.IOU_LOSS_TYPE
         self.norm_reg_targets = cfg.MODEL.FCOS.NORM_REG_TARGETS
 
         self.cls_weight_func = FocalLossFunc(
@@ -65,7 +65,7 @@ class RASLossComputation(object):
 
         # we make use of IOU Loss for bounding boxes regression,
         # but we found that L1 in log scale can yield a similar performance
-        self.box_reg_loss_func = IOULoss()
+        self.box_reg_loss_func = IOULoss(self.iou_loss_type)
         self.centerness_loss_func = nn.BCEWithLogitsLoss(reduction="sum")
 
     def get_sample_region(self, gt, strides, num_points_per, gt_xs, gt_ys, radius=1.0):
@@ -420,7 +420,7 @@ class RASLossComputation(object):
         
         if pos_inds.numel() > 0:
             # centerness_targets = self.compute_centerness_targets(reg_targets_flatten)
-            gious, ious = self.calc_ious(box_regression_flatten, reg_targets_flatten, iou_type="giou")
+            gious, ious = self.calc_ious(box_regression_flatten, reg_targets_flatten, iou_type=self.iou_loss_type)
             iou_targets = ious.detach()
 
             with torch.no_grad():
