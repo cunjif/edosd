@@ -131,6 +131,7 @@ class RASModule(torch.nn.Module):
         self.box_selector_test = box_selector_test
         self.loss_evaluator = loss_evaluator
         self.fpn_strides = cfg.MODEL.FCOS.FPN_STRIDES
+        assert False
 
     def forward(self, images, features, targets=None):
         """
@@ -149,6 +150,8 @@ class RASModule(torch.nn.Module):
         """
         box_cls, box_regression, centerness = self.head(features)
         locations = self.compute_locations(features)
+
+        # return centerness
  
         if self.training:
             return self._forward_train(

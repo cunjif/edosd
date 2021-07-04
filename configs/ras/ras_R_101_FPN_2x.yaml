@@ -2,7 +2,7 @@ MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
   WEIGHT: "catalog://ImageNetPretrained/MSRA/R-101"
   RPN_ONLY: True
-  FCOS_ON: True
+  RAS_ON: True
   BACKBONE:
     CONV_BODY: "R-101-FPN-RETINANET"
   RESNETS:

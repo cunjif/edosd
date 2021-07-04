@@ -19,11 +19,22 @@ from fcos_core.data.transforms import Resize
 from fcos_core.data.build import make_data_loader
 import numpy as np
 import cv2
+from tqdm import tqdm
 
 torch.set_printoptions(precision=3, sci_mode=False, threshold=65536)
 
 
 _COLORS = ["red", "blue", "yellow", "orange", "purple", "green"]
+CATEGORIES = [ "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat",
+    "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog",
+    "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag",
+    "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove",
+    "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", 
+    "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut",
+    "cake", "chair", "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse",
+    "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book",
+    "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush",
+]
 
 
 def randomColors(k):
@@ -129,19 +140,65 @@ def visual():
 
     data_loader = make_data_loader(cfg, is_train=False, is_distributed=False)[0]
     network.eval()
+    steps = cfg.MODEL.FCOS.FPN_STRIDES
     with torch.no_grad():
-        for batch in data_loader:
+        for batch in tqdm(data_loader):
             images, targets, _ = batch
 
-            image_id = targets[0].image_id
             targets = [target.to(cfg.MODEL.DEVICE) for target in targets]
 
-            cent = network(images.to(cfg.MODEL.DEVICE), targets)
-            print(len(cent))
-            print(targets[0].bbox)
-            print(image_id)
-            exit()
+            cents = network(images.to(cfg.MODEL.DEVICE), targets)
+
+            for target, *cens in zip(targets, *cents):
+                im_dir = f"{vis_cen}/{target.image_id}"
+                if not os.path.exists(im_dir):
+                    os.makedirs(im_dir)
+                    
+                for cen, step in zip(cens, steps):
+                    # _, h, w = cen.shape
+                    # print(cen.permute(0,2,1).shape);exit()
+                    cen = cen.sigmoid().squeeze(0)
+                    cen = cen.cpu().numpy()
+                    # print(cen.shape)
+                    # print(len(cen))
+                    # exit()
+                    
+                    filedir = f"{im_dir}/{step}"
+                    if not os.path.exists(filedir):
+                        os.makedirs(filedir)
+
+                    for idx, (label, obox) in enumerate(zip(target.get_field("labels"), target.bbox)):
+                        label = CATEGORIES[label-1]
+                        box = obox / float(step)
+                        x1,y1,x2,y2 = [int(_) for _ in box.cpu().numpy().tolist()]
+
+                        # print(obox);exit()
+
+                        filename = f"{filedir}/{idx}.txt"
+                        with open(filename, mode="w+") as fp:
+                            H, W = target.size
+                            mh, mw = cen.shape
+                            fp.write(f"shape: {H},{W}. step: {step}. label: {label}. box: {obox.cpu().numpy().tolist()}\n")
+                            for c in cen[max(y1,0):min(y2,mh), max(0,x1):min(x2,mw)].tolist():
+                                fp.write(f"{' '.join([str(round(_, 2)) for _ in c])} \n")
+                            fp.flush()
+
+                    filename = f"{im_dir}/{step}.txt"
+                    with open(filename, mode="w+") as fp:
+                        H, W = target.size
+                        mh, mw = cen.shape
+                        fp.write(f"shape: {H},{W}. step: {step}. \n")
+                        for c in cen.tolist():
+                            fp.write(f"{' '.join([str(round(_, 2)) for _ in c])} \n")
+                        fp.flush()
+                        
 
 if __name__ == '__main__':
+    vis_cen = "vis_centerness"
+    # vis_cen = "vis_ras_centerness"
+    if not os.path.exists(vis_cen):
+        os.makedirs(vis_cen)
+
     visual()
 
+# cat = [ "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]

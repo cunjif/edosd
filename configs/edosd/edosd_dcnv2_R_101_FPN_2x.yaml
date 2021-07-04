@@ -13,16 +13,10 @@ MODEL:
   RETINANET:
     USE_C5: False # FCOS uses P5 instead of C5
   FCOS:
-    # normalizing the regression targets with FPN strides
-    NORM_REG_TARGETS: True
-    # positioning centerness on the regress branch.
-    # Please refer to https://github.com/tianzhi0549/FCOS/issues/89#issuecomment-516877042
     CENTERNESS_ON_REG: True
     # using center sampling and GIoU.
     # Please refer to https://github.com/yqyao/FCOS_PLUS
     CENTER_SAMPLING_RADIUS: 1.5
-    # IOU_LOSS_TYPE: "giou"
-    # we only use dcn in the last layer of towers
     USE_DCN_IN_TOWER: True
 DATASETS:
   TRAIN: ("coco_2017_train",)

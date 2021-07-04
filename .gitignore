@@ -131,3 +131,5 @@ training_dir/*
 
 # Pyre type checker
 .pyre/
+
+vis_centerness/*
