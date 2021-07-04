@@ -5,7 +5,8 @@ import os
 
 
 class DatasetCatalog(object):
-    DATA_DIR = "/media/f511/c3b81025-f61b-4168-a999-00e2b8629aac/f511/swart/datasets"
+    DATA_DIR = ""
+    DATA_DIR = "D:\\datasets"
     DATASETS = {
         "coco_2017_train": {
             "img_dir": "coco/images/train2017",
