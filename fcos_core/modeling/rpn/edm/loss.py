@@ -8,7 +8,7 @@ from torch.nn import functional as F
 from torch import nn
 import os
 from ..utils import concat_box_prediction_layers
-from fcos_core.layers import IOULoss
+from fcos_core.layers import IOULoss, iou_loss
 from fcos_core.layers import SigmoidFocalLoss
 from fcos_core.modeling.matcher import Matcher
 from fcos_core.modeling.utils import cat
@@ -264,10 +264,10 @@ class EDMLossComputation(object):
             sum_centerness_targets_avg_per_gpu = \
                 reduce_sum(centerness_targets.sum()).item() / float(num_gpus)
 
+            ious = self.box_reg_loss_func.calc_ious(box_regression_flatten, reg_targets_flatten)
             reg_loss = self.box_reg_loss_func(
-                box_regression_flatten,
-                reg_targets_flatten,
-                centerness_targets
+                ious,
+                weight=centerness_targets
             ) / sum_centerness_targets_avg_per_gpu
             centerness_loss = self.centerness_loss_func(
                 centerness_flatten,
