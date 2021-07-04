@@ -1,27 +1,13 @@
-export CUDA_VISIBLE_DEVICES=1
-export PYTHONPATH=/media/f511/Wenjie/swart/test-fcos:$PYTHONPATH
+set CUDA_VISIBLE_DEVICES=0
+set PYTHONPATH=.;$PYTHONPATH$
 
-# image=785.jpg
-# bbox=[42,285,382,496]
-# cat=0
+set config=fcos/fcos_R_50_FPN_1x.yaml
 
-# image=46804.jpg
-# bbox=[53,222,367,463]
-# cat=18
+set weight=50ori/model_0090000.pth
 
-image=285.jpg
-bbox=[72,3,628,584]
-cat=21
+set count=1
 
-# python visualer/visual.py \
-#     --config-file configs/fcos/fcos_R_50_FPN_1x.yaml \
-#     --image visualer/$image \
-#     --bbox $bbox \
-#     --cat $cat \
-#     MODEL.WEIGHT training_dir/resnet50cen/model_0085000.pth \
-#     TEST.IMS_PER_BATCH 10
-
-python visualer/visual.py \
-    --config-file configs/fcos/fcos_R_50_FPN_1x.yaml \
-    MODEL.WEIGHT training_dir/resnet50cen/model_0085000.pth \
-    TEST.IMS_PER_BATCH 10
+python visualer/visual.py ^
+    --config-file configs/%config% ^
+    MODEL.WEIGHT training_dir/%weight% ^
+    TEST.IMS_PER_BATCH %count%

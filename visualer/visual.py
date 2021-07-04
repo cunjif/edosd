@@ -116,7 +116,6 @@ def visual():
         torch.distributed.init_process_group(
             backend="nccl", init_method="env://"
         )
-        synchronize()
 
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
@@ -131,30 +130,14 @@ def visual():
     data_loader = make_data_loader(cfg, is_train=False, is_distributed=False)[0]
     network.eval()
     with torch.no_grad():
-        for idx,batch in enumerate(data_loader):
-            try:
-                a = 484
-                if idx < a:
-                    continue
-                if idx>a:
-                    exit()
-                if idx in [13,]:
-                    continue
-                print(F"{idx}-th loop")
-                images, targets, image_ids = batch
-                print(F"img ids: {image_ids}")
-                targets = [target.to(cfg.MODEL.DEVICE) for target in targets]
+        for batch in data_loader:
+            images, targets, idx = batch
+            image_id = images[0].image_id
+            targets = [target.to(cfg.MODEL.DEVICE) for target in targets]
 
-                conf_ious = network(images.to(cfg.MODEL.DEVICE), targets)
-                    
-                if conf_ious is None:
-                    continue
-                
-                clses, ious, cens = conf_ious
-                clses *= cens
-                visual_core_edge_feats((clses.cpu(), ious.cpu(), _COLORS[4]))
-            except:
-                continue
+            cent = network(images.to(cfg.MODEL.DEVICE), targets)
+            print(cent)
+            exit()
 
 if __name__ == '__main__':
     visual()

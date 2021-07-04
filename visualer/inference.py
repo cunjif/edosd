@@ -100,7 +100,7 @@ class FCOSPostProcessor(torch.nn.Module):
             ], dim=1)
 
             h, w = image_sizes[i]
-            boxlist = BoxList(detections, (int(w), int(h)), mode="xyxy")
+            boxlist = BoxList(detections, (int(w), int(h)), image_id=11111, mode="xyxy")
             boxlist.add_field("labels", per_class)
             boxlist.add_field("scores", torch.sqrt(per_box_cls))
             boxlist = boxlist.clip_to_image(remove_empty=False)
