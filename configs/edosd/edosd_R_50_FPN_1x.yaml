@@ -9,7 +9,7 @@ MODEL:
     BACKBONE_OUT_CHANNELS: 256
   RETINANET:
     USE_C5: False # FCOS uses P5 instead of C5
-  FCOS:
+  # FCOS:
     # NORM_REG_TARGETS: True
     # Please refer to https://github.com/yqyao/FCOS_PLUS
     # CENTER_SAMPLING_RADIUS: 2.0
