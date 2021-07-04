@@ -131,12 +131,15 @@ def visual():
     network.eval()
     with torch.no_grad():
         for batch in data_loader:
-            images, targets, idx = batch
-            image_id = images[0].image_id
+            images, targets, _ = batch
+
+            image_id = targets[0].image_id
             targets = [target.to(cfg.MODEL.DEVICE) for target in targets]
 
             cent = network(images.to(cfg.MODEL.DEVICE), targets)
-            print(cent)
+            print(len(cent))
+            print(targets[0].bbox)
+            print(image_id)
             exit()
 
 if __name__ == '__main__':
