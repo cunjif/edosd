@@ -151,7 +151,7 @@ class FCOSModule(torch.nn.Module):
         box_cls, box_regression, centerness = self.head(features)
         locations = self.compute_locations(features)
 
-        return centerness
+        # return centerness
  
         if self.training:
             return self._forward_train(

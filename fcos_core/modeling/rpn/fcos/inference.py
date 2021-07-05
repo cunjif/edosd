@@ -1,3 +1,4 @@
+from matplotlib.pyplot import box
 import torch
 
 from ..inference import RPNPostProcessor
@@ -58,8 +59,9 @@ class FCOSPostProcessor(torch.nn.Module):
         N, C, H, W = box_cls.shape
 
         # put in the same format as locations
+        box_cls = box_cls.sigmoid() * centerness.sigmoid()
         box_cls = box_cls.view(N, C, H, W).permute(0, 2, 3, 1)
-        box_cls = box_cls.reshape(N, -1, C).sigmoid()
+        box_cls = box_cls.reshape(N, -1, C)#.sigmoid()
         box_regression = box_regression.view(N, 4, H, W).permute(0, 2, 3, 1)
         box_regression = box_regression.reshape(N, -1, 4)
         centerness = centerness.view(N, 1, H, W).permute(0, 2, 3, 1)
@@ -70,7 +72,7 @@ class FCOSPostProcessor(torch.nn.Module):
         pre_nms_top_n = pre_nms_top_n.clamp(max=self.pre_nms_top_n)
 
         # multiply the classification scores with centerness scores
-        box_cls = box_cls * centerness[:, :, None]
+        # box_cls = box_cls * centerness[:, :, None]
 
         results = []
         for i in range(N):
