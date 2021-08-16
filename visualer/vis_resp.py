@@ -71,31 +71,17 @@ def visual_core_edge_feats(dots):
     input(F"enter to continue")
     plt.close('all')
 
-def show_heatmap(features, name, h, w, s):
-    features = features[0]
-    features = features.cpu().sigmoid().numpy()
-    # h, w = features.shape[-2:]
-    imgs = np.zeros((h*16+16, w*16+16, 3), dtype=np.uint8)
+def show_heatmap(feat, h, w):
+    # features = features.cpu().sigmoid().numpy()
     
-    r = []
-    for idx,feat in enumerate(features):
-        feat = feat * 255
-        feat = feat.astype(np.uint8)
-        feat = cv2.resize(feat, (w, h))
-        img = cv2.applyColorMap(feat, cv2.COLORMAP_JET)
-        hh = h+1
-        ww = w+1
-        f = np.zeros((hh,ww,3), dtype=np.uint8)
-        f[0:h,0:w,:] = img
-        r.append(f)
-    h += 1
-    w += 1
-    for i in range(16):
-        for j in range(16):
-            imgs[i*h:(i+1)*h, w*j:w*(j+1), :] = r[i*16+j]
+    feat = ((feat - feat.min()) / (feat.max() - feat.min())) * 255
+    feat = feat.cpu().numpy()
+    # feat = feat * 255
+    feat = feat.astype(np.uint8)
+    feat = cv2.resize(feat, (w, h))
+    img = cv2.applyColorMap(feat, cv2.COLORMAP_JET)
 
-    cv2.imshow(F"{name}-{s}", imgs)
-    cv2.waitKey(-1)
+    return img
 
 
 def visual():
@@ -109,7 +95,7 @@ def visual():
     parser.add_argument("--local_rank", type=int, default=0)
     # parser.add_argument("--image", type=str)
     # parser.add_argument("--bbox", type=str)
-    # parser.add_argument("--cat", type=int)
+    parser.add_argument("--heat_dir", type=str)
     parser.add_argument(
         "opts",
         help="Modify config options using the command-line",
@@ -132,6 +118,10 @@ def visual():
     cfg.merge_from_list(args.opts)
     cfg.freeze()
 
+    vis_cen = args.heat_dir
+    if not os.path.exists(vis_cen):
+        os.makedirs(vis_cen) 
+
     network = GeneralizedRCNN(cfg)
     network.to(cfg.MODEL.DEVICE)
     output_dir = cfg.OUTPUT_DIR
@@ -145,19 +135,37 @@ def visual():
         for batch in tqdm(data_loader):
             images, targets, _ = batch
 
+            assert len(targets) == 1
+
+            if len(targets[0].bbox) == 0:
+                continue
+
             targets = [target.to(cfg.MODEL.DEVICE) for target in targets]
 
-            cls_resp,  = network(images.to(cfg.MODEL.DEVICE), targets)
+            img_dir = f"{vis_cen}/{targets[0].image_id}"
+            if not os.path.exists(img_dir):
+                os.makedirs(img_dir)
+            
+            resps, _, _  = network(images.to(cfg.MODEL.DEVICE), targets)
+            if resps is None:
+                continue
+
+            confidences, ious, centerness = resps
+            w, h = targets[0].size
+            h = int(h/2)
+            w = int(w/2)
+            # print(h,w);exit()
+            for step, confidence, iou in zip(steps, confidences, ious):
+                filename = f"{img_dir}/{{}}-{step}.jpg"
+                cls_resp = show_heatmap(confidence, h, w)
+                reg_resp = show_heatmap(iou, h, w)
+                cv2.imwrite(filename.format("cls"), cls_resp)
+                cv2.imwrite(filename.format("reg"), reg_resp)
+            # exit()
 
            
                         
 
 if __name__ == '__main__':
-    # vis_cen = "vis_fcos_centerness"
-    vis_cen = "vis_ras_centerness"
-    if not os.path.exists(vis_cen):
-        os.makedirs(vis_cen)
-
+    # vis_cen = "vis_response_heatmap_10k"
     visual()
-
-# cat = [ "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]

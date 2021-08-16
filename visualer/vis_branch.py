@@ -108,7 +108,7 @@ def visual():
     )
     parser.add_argument("--local_rank", type=int, default=0)
     # parser.add_argument("--image", type=str)
-    # parser.add_argument("--bbox", type=str)
+    parser.add_argument("--heat_dir", type=str)
     # parser.add_argument("--cat", type=int)
     parser.add_argument(
         "opts",
@@ -131,6 +131,10 @@ def visual():
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
     cfg.freeze()
+
+    vis_cen = args.heat_dir
+    if not os.path.exists(vis_cen):
+        os.makedirs(vis_cen) 
 
     network = GeneralizedRCNN(cfg)
     network.to(cfg.MODEL.DEVICE)
@@ -197,11 +201,6 @@ def visual():
                         
 
 if __name__ == '__main__':
-    # vis_cen = "vis_fcos_centerness"
-    vis_cen = "vis_ras_centerness"
-    if not os.path.exists(vis_cen):
-        os.makedirs(vis_cen)
-
     visual()
 
 # cat = [ "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]

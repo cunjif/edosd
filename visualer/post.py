@@ -3,6 +3,8 @@ This file contains specific functions for computing losses of FCOS
 file
 """
 
+import enum
+import io
 import os
 from numpy.core.fromnumeric import shape
 import torch
@@ -82,40 +84,6 @@ class FCOSLossComputation(object):
         center_bbox = torch.stack((left, top, right, bottom), -1)
         inside_gt_bbox_mask = center_bbox.min(-1)[0] > 0
         return inside_gt_bbox_mask
-
-    def asymetric_sample_region(self, gt, strides, num_points_per, gt_xs, gt_ys):
-        num_gts = gt.shape[0]
-        K = sum(num_points_per)
-        gt = gt[None].expand(K, num_gts, 4)
-        left_x = gt[..., 0]
-        right_x = gt[..., 2]
-        top_y = gt[..., 1]
-        bottom_y = gt[..., 3]
-        center_gt = gt.new_zeros(gt.shape)
-        areas = (right_x - left_x) * (bottom_y - top_y)
-        # no gt
-        print(F"gt_xs is {gt_xs.shape}")
-        print(F"gt shape: {gt.shape}")
-        if ((left_x + right_x) / 2).sum() == 0:
-            return left_x.new_zeros(K, dtype=torch.uint8)
-
-        s_inds = areas > 40000
-        l_inds = ~s_inds
-        
-        left_x[s_inds]   = (2*left_x[s_inds] + right_x[s_inds]) / 3
-        right_x[s_inds]  = (left_x[s_inds] + 2*right_x[s_inds]) / 3
-        top_y[s_inds]    = (2*top_y[s_inds] + bottom_y[s_inds]) / 3
-        bottom_y[s_inds] = (top_y[s_inds] + 2*bottom_y[s_inds]) / 3
-        # beg = 0
-        # for level, n_p in enumerate(num_points_per):
-        #     end = beg + n_p
-        #     # stride = strides[level] * radius
-        #     xmin = center_x[beg:end] - stride
-        #     ymin = center_y[beg:end] - stride
-        #     xmax = center_x[beg:end] + stride
-        #     ymax = center_y[beg:end] + stride
-
-        # exit()
 
     def prepare_targets(self, points, targets):
         object_sizes_of_interest = [
@@ -207,13 +175,13 @@ class FCOSLossComputation(object):
 
             max_reg_targets_per_im = reg_targets_per_im.max(dim=2)[0]
             # limit the regression range for each location
-            is_cared_in_the_level = \
-                (max_reg_targets_per_im >= object_sizes_of_interest[:, [0]]) & \
-                (max_reg_targets_per_im <= object_sizes_of_interest[:, [1]])
+            # is_cared_in_the_level = \
+            #     (max_reg_targets_per_im >= object_sizes_of_interest[:, [0]]) & \
+            #     (max_reg_targets_per_im <= object_sizes_of_interest[:, [1]])
 
             locations_to_gt_area = area[None].repeat(len(locations), 1)
             locations_to_gt_area[is_in_boxes == 0] = INF
-            locations_to_gt_area[is_cared_in_the_level == 0] = INF
+            # locations_to_gt_area[is_cared_in_the_level == 0] = INF
 
             # if there are still more than one objects for a location,
             # we choose the one with minimal area
@@ -281,20 +249,9 @@ class FCOSLossComputation(object):
             raise NotImplementedError
     
     def __call__(self, locations, box_cls, box_regression, centerness, targets):
-        """
-        Arguments:
-            locations (list[BoxList])
-            box_cls (list[Tensor])
-            box_regression (list[Tensor])
-            centerness (list[Tensor])
-            targets (list[BoxList])
-
-        Returns:
-            cls_loss (Tensor)
-            reg_loss (Tensor)
-            centerness_loss (Tensor)
-        """
         N = box_cls[0].size(0)
+        num_points_levels = [len(loc) for loc in locations]
+        h_w_levels = [(l.size(2), l.size(3)) for l in box_cls]
         num_classes = box_cls[0].size(1)
         labels, reg_targets, gt_inds, num_target = self.prepare_targets(locations, targets)
 
@@ -308,9 +265,9 @@ class FCOSLossComputation(object):
             box_cls_flatten_.append(box_cls[l].permute(0, 2, 3, 1).reshape(-1, num_classes))
             box_regression_flatten_.append(box_regression[l].permute(0, 2, 3, 1).reshape(-1, 4))
             labels_flatten_.append(labels[l].reshape(-1))
+            centerness_flatten.append(centerness[l].reshape(-1))
             reg_targets_flatten_.append(reg_targets[l].reshape(-1, 4))
             gt_inds_flatten.append(gt_inds[l].reshape(-1))
-            centerness_flatten.append(centerness[l].reshape(-1))
 
         box_cls_flatten = torch.cat(box_cls_flatten_, dim=0)
         box_regression_flatten = torch.cat(box_regression_flatten_, dim=0)
@@ -320,33 +277,51 @@ class FCOSLossComputation(object):
         gt_inds_flatten = torch.cat(gt_inds_flatten, dim=0)
 
         pos_inds = torch.nonzero(labels_flatten > 0).squeeze(1)
-
+        ious = box_regression_flatten.new_zeros(box_regression_flatten.size(0))
+        
         box_regression_flatten = box_regression_flatten[pos_inds]
         reg_targets_flatten = reg_targets_flatten[pos_inds]
-        gt_inds_flatten = gt_inds_flatten[pos_inds]
-        centerness_flatten = centerness_flatten[pos_inds]
+        # gt_inds_flatten = gt_inds_flatten[pos_inds]
 
         if pos_inds.numel() > 0:
-            conf = sigmoid_focal_loss(box_cls_flatten, labels_flatten)
-            _, ious = self.calc_ious(box_regression_flatten, reg_targets_flatten, iou_type="iou")
+            conf = get_cls_confidence(box_cls_flatten.sigmoid(), labels_flatten, pos_inds)
+            _, ious[pos_inds] = self.calc_ious(box_regression_flatten, reg_targets_flatten, iou_type="iou")
 
-            return conf, ious, centerness_flatten.sigmoid()
+            for idx_gt in range(1, num_target + 1):
+                mask = idx_gt == gt_inds_flatten
+                if mask.sum() > 0:
+                    # print(minmax(conf[mask]));exit()
+                    conf[mask] = minmax(conf[mask])
+                    ious[mask] = minmax(ious[mask])
+            
+            confs = torch.split(conf, num_points_levels, dim=0)
+            confs = [confs[l].reshape(loc[0], loc[1]) for l,loc in enumerate(h_w_levels)]
+            ious = torch.split(ious, num_points_levels, dim=0)
+            ious = [ious[l].reshape(loc[0], loc[1]) for l, loc in enumerate(h_w_levels)]
+
+            return confs, ious, centerness_flatten.sigmoid()
         return None
 
 
-def sigmoid_focal_loss(logits, targets):
+def minmax(x):
+    return (x - x.min()) / (x.max() - x.min() + 1e-12)
+
+def get_cls_confidence(logits, targets, pos_inds):
     num_classes = logits.size(1)
 
     dtype = targets.dtype
     device = targets.device
     class_range = torch.arange(1, num_classes+1, dtype=dtype, device=device).unsqueeze(0)
 
+    confs = logits.new_zeros(logits.size(0))
     t = targets.unsqueeze(1)
-    p = torch.sigmoid(logits)
 
-    pos = p[t == class_range]
+    pos = logits[t == class_range]
+    # p = torch.nonzero((t == class_range).sum(dim=1) > 0).squeeze(1)
+    # print(p == pos_inds)
+    confs[pos_inds] = pos
 
-    return pos
+    return confs
 
 
 def make_fcos_loss_evaluator(cfg):

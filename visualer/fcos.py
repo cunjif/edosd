@@ -6,6 +6,7 @@ from torch import nn
 from fcos_core.layers import Scale
 from fcos_core.layers import DFConv2d
 from .post import make_fcos_loss_evaluator
+from .mpost import make_fcos_loss_evaluator
 
 
 class FCOSHead(torch.nn.Module):
@@ -19,7 +20,7 @@ class FCOSHead(torch.nn.Module):
         num_classes = cfg.MODEL.FCOS.NUM_CLASSES - 1
         self.fpn_strides = cfg.MODEL.FCOS.FPN_STRIDES
         self.norm_reg_targets = cfg.MODEL.FCOS.NORM_REG_TARGETS
-        # self.centerness_on_reg = cfg.MODEL.FCOS.CENTERNESS_ON_REG
+        self.centerness_on_reg = cfg.MODEL.FCOS.CENTERNESS_ON_REG
         self.use_dcn_in_tower = cfg.MODEL.FCOS.USE_DCN_IN_TOWER
 
         cls_tower = []
@@ -94,14 +95,16 @@ class FCOSHead(torch.nn.Module):
         cls_towers = []
         box_towers = []
         for l, feature in enumerate(x):
-            cls_tower = self.cls_tower(feature.agg)
-            box_tower = self.bbox_tower(feature.appr)
+            cls_tower = self.cls_tower(feature)
+            box_tower = self.bbox_tower(feature)
 
             cls_towers.append(cls_tower)
             box_towers.append(box_tower)
 
             logits.append(self.cls_logits(cls_tower))
-            centerness.append(self.centerness(box_tower))
+
+            # centerness.append(self.centerness(box_tower))
+            centerness.append(self.centerness(cls_tower))
 
             bbox_pred = self.scales[l](self.bbox_pred(box_tower))
             if self.norm_reg_targets:
@@ -151,16 +154,16 @@ class FCOSModule(torch.nn.Module):
 
         return self.post(
             locations, box_cls, box_regression, 
-            centerness, targets)
+            centerness, targets), clses, bboxes
             
  
     def compute_locations(self, features):
         locations = []
         for level, feature in enumerate(features):
-            h, w = feature.agg.size()[-2:]
+            h, w = feature.size()[-2:]
             locations_per_level = self.compute_locations_per_level(
                 h, w, self.fpn_strides[level],
-                feature.agg.device
+                feature.device
             )
             locations.append(locations_per_level)
         return locations

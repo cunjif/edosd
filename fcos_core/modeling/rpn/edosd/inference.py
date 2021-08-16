@@ -66,7 +66,7 @@ class EDOSDPostProcessor(torch.nn.Module):
         centerness = centerness.reshape(N, -1).sigmoid()
 
         candidate_inds = box_cls > self.pre_nms_thresh
-        pre_nms_top_n = candidate_inds.view(N, -1).sum(1)
+        pre_nms_top_n = candidate_inds.reshape(N, -1).sum(1)
         pre_nms_top_n = pre_nms_top_n.clamp(max=self.pre_nms_top_n)
 
         # multiply the classification scores with centerness scores
@@ -103,7 +103,7 @@ class EDOSDPostProcessor(torch.nn.Module):
             ], dim=1)
 
             h, w = image_sizes[i]
-            boxlist = BoxList(detections, (int(w), int(h)), mode="xyxy")
+            boxlist = BoxList(detections, (int(w), int(h)), image_id=11111, mode="xyxy")
             boxlist.add_field("labels", per_class)
             boxlist.add_field("scores", torch.sqrt(per_box_cls))
             boxlist = boxlist.clip_to_image(remove_empty=False)

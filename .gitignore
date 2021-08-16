@@ -134,3 +134,4 @@ training_dir/*
 
 vis_fcos_centerness/*
 vis_ras_centerness/*
+vis_*/*

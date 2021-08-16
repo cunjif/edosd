@@ -10,6 +10,7 @@ from fcos_core.structures.image_list import to_image_list
 
 from fcos_core.modeling.backbone import build_backbone
 from fcos_core.modeling.rpn.rpn import build_rpn
+from .fcos import build_fcos
 
 
 class GeneralizedRCNN(nn.Module):
@@ -26,7 +27,7 @@ class GeneralizedRCNN(nn.Module):
         super(GeneralizedRCNN, self).__init__()
 
         self.backbone = build_backbone(cfg)
-        self.rpn = build_rpn(cfg, self.backbone.out_channels)
+        self.rpn = build_fcos(cfg, self.backbone.out_channels)
 
     def forward(self, images, targets=None):
         """
