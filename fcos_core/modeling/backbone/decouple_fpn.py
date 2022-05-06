@@ -13,10 +13,10 @@ class DecoupleBranch(nn.Module):
         super(DecoupleBranch, self).__init__()
 
         self.agg_down  = nn.Conv2d(in_channel, out_channel, 1, 1)
-        self.agg_trans = DFConv2d(out_channel, out_channel, kernel_size=3, padding=1, stride=1, bias=True)
+        self.agg_trans = nn.Conv2d(out_channel, out_channel, kernel_size=3, padding=1, stride=1, bias=True)
 
         self.appr_down  = nn.Conv2d(in_channel, out_channel, 1, 1)
-        self.appr_trans = DFConv2d(out_channel, out_channel, kernel_size=3, padding=1, stride=1, bias=True)
+        self.appr_trans = nn.Conv2d(out_channel, out_channel, kernel_size=3, padding=1, stride=1, bias=True)
 
         self._init_weight()
 

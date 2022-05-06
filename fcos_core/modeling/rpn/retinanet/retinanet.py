@@ -39,6 +39,7 @@ class RetinaNetHead(torch.nn.Module):
                     padding=1
                 )
             )
+            cls_tower.append(nn.GroupNorm(32, in_channels))
             cls_tower.append(nn.ReLU())
             bbox_tower.append(
                 nn.Conv2d(
@@ -49,6 +50,7 @@ class RetinaNetHead(torch.nn.Module):
                     padding=1
                 )
             )
+            bbox_tower.append(nn.GroupNorm(32, in_channels))
             bbox_tower.append(nn.ReLU())
 
         self.add_module('cls_tower', nn.Sequential(*cls_tower))
@@ -59,6 +61,10 @@ class RetinaNetHead(torch.nn.Module):
         )
         self.bbox_pred = nn.Conv2d(
             in_channels,  num_anchors * 4, kernel_size=3, stride=1,
+            padding=1
+        )
+        self.centerness = nn.Conv2d(
+            in_channels, num_anchors, kernel_size=3, stride=1,
             padding=1
         )
 
@@ -79,10 +85,13 @@ class RetinaNetHead(torch.nn.Module):
     def forward(self, x):
         logits = []
         bbox_reg = []
+        centerness = []
         for feature in x:
+            box_tower = self.bbox_tower(feature)
             logits.append(self.cls_logits(self.cls_tower(feature)))
-            bbox_reg.append(self.bbox_pred(self.bbox_tower(feature)))
-        return logits, bbox_reg
+            bbox_reg.append(self.bbox_pred(box_tower))
+            centerness.append(self.centerness(box_tower))
+        return logits, bbox_reg, centerness
 
 
 class RetinaNetModule(torch.nn.Module):
@@ -124,15 +133,15 @@ class RetinaNetModule(torch.nn.Module):
             losses (dict[Tensor]): the losses for the model during training. During
                 testing, it is an empty dict.
         """
-        box_cls, box_regression = self.head(features)
+        box_cls, box_regression, centerness = self.head(features)
         anchors = self.anchor_generator(images, features)
  
         if self.training:
-            return self._forward_train(anchors, box_cls, box_regression, targets)
+            return self._forward_train(anchors, box_cls, box_regression, centerness, targets)
         else:
-            return self._forward_test(anchors, box_cls, box_regression)
+            return self._forward_test(anchors, box_cls, box_regression, centerness)
 
-    def _forward_train(self, anchors, box_cls, box_regression, targets):
+    def _forward_train(self, anchors, box_cls, box_regression, centerness, targets):
 
         loss_box_cls, loss_box_reg = self.loss_evaluator(
             anchors, box_cls, box_regression, targets
@@ -140,6 +149,7 @@ class RetinaNetModule(torch.nn.Module):
         losses = {
             "loss_retina_cls": loss_box_cls,
             "loss_retina_reg": loss_box_reg,
+            # "loss_centerness": loss_centerness
         }
         return anchors, losses
 

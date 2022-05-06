@@ -7,7 +7,7 @@ FLIP_TOP_BOTTOM = 1
 
 
 class BoxList(object):
-    def __init__(self, bbox, image_size, image_id, mode="xyxy"):
+    def __init__(self, bbox, image_size, image_id=None, mode="xyxy"):
         device = bbox.device if isinstance(bbox, torch.Tensor) else torch.device("cpu")
         bbox = torch.as_tensor(bbox, dtype=torch.float32, device=device)
         if bbox.ndimension() != 2:

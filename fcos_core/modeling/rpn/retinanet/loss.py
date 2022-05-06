@@ -8,13 +8,14 @@ from torch.nn import functional as F
 
 from ..utils import concat_box_prediction_layers
 
-from fcos_core.layers import smooth_l1_loss
-from fcos_core.layers import SigmoidFocalLoss
-from fcos_core.modeling.matcher import Matcher
-from fcos_core.modeling.utils import cat
-from fcos_core.structures.boxlist_ops import boxlist_iou
-from fcos_core.structures.boxlist_ops import cat_boxlist
-from fcos_core.modeling.rpn.loss import RPNLossComputation
+from taa_core.layers import smooth_l1_loss
+from taa_core.layers import SigmoidFocalLoss
+from taa_core.modeling.matcher import Matcher
+from taa_core.modeling.utils import cat
+from taa_core.structures.boxlist_ops import boxlist_iou
+from taa_core.structures.boxlist_ops import cat_boxlist
+from taa_core.modeling.rpn.loss import RPNLossComputation
+from taa_core.layers.iou_loss import IOULoss
 
 class RetinaNetLossComputation(RPNLossComputation):
     """
@@ -40,6 +41,8 @@ class RetinaNetLossComputation(RPNLossComputation):
         self.discard_cases = ['between_thresholds']
         self.regress_norm = regress_norm
 
+        self.box_loss_func = IOULoss()
+
     def __call__(self, anchors, box_cls, box_regression, targets):
         """
         Arguments:
@@ -63,12 +66,22 @@ class RetinaNetLossComputation(RPNLossComputation):
         regression_targets = torch.cat(regression_targets, dim=0)
         pos_inds = torch.nonzero(labels > 0).squeeze(1)
 
-        retinanet_regression_loss = smooth_l1_loss(
+        # retinanet_regression_loss = smooth_l1_loss(
+        #     box_regression[pos_inds],
+        #     regression_targets[pos_inds],
+        #     beta=self.bbox_reg_beta,
+        #     size_average=False,
+        # ) / (max(1, pos_inds.numel() * self.regress_norm))
+        regression_targets[pos_inds] = regression_targets[pos_inds].clamp_min(0)
+        retinanet_regression_loss = self.box_loss_func(
             box_regression[pos_inds],
-            regression_targets[pos_inds],
-            beta=self.bbox_reg_beta,
-            size_average=False,
+            regression_targets[pos_inds]
         ) / (max(1, pos_inds.numel() * self.regress_norm))
+
+        if torch.isnan(retinanet_regression_loss).sum() > 0:
+            print((regression_targets[pos_inds]<0).sum())
+        else:
+            print(f"wushi: {(regression_targets[pos_inds]<0).sum()}")
 
         labels = labels.int()
 
